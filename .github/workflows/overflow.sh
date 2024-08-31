@@ -1,0 +1,1 @@
+digest_file=$($dcheck | jq -r 'to_entries | map("\(.key)=\(.value | split("=")[0])") | .[]')
