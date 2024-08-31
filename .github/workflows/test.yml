@@ -15,11 +15,10 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        image: ['stable', 'stable-tensorrt', 'stable-rocm', 'stable-standard-arm64']
+        image: ['stable', 'stable-tensorrt', 'stable-standard-arm64']
     outputs:
       stable: ${{ steps.compare.outputs.stable }}
       stable-tensorrt: ${{ steps.compare.outputs.stable-tensorrt }}
-      stable-rocm: ${{ steps.compare.outputs.stable-rocm }}
       stable-standard-arm64: ${{ steps.compare.outputs.stable-standard-arm64 }}
     steps:
     - name: Checkout repository
@@ -56,32 +55,47 @@ jobs:
           echo "First run or $digest_file file not found"
           stat=new
         fi
-        echo "${tag}=${new_digest}:${stat}" >> $GITHUB_OUTPUT
+        echo "${tag}=${new_digest}=${stat}" >> $GITHUB_OUTPUT
 
   aggregate-results:
     needs: check-digest
     runs-on: ubuntu-latest
     outputs:
-      changed-tags: ${{ steps.aggregate.outputs.changed_tags }}
-      changed-digests: ${{ steps.aggregate.outputs.changed_digests }}
+      changed_tags: ${{ steps.aggregate.outputs.changed_tags }}
+      changed_digests: ${{ steps.aggregate.outputs.changed_digests }}
+      n_changed: ${{ steps.aggregate.outputs.n_changed }}
+      digest_file: ${{ steps.aggregate.outputs.n_changed }}
     steps:
     - name: Aggregate changed tags and digests
       id: aggregate
       run: |
-        echo '${{ toJSON(needs.check-digest.outputs) }}'
-        changed_tags=""
-        changed_digests=""
+        dcheck='${{ toJSON(needs.check-digest.outputs) }}'
 
-        echo "changed_tags=${changed_tags%,}" >> $GITHUB_OUTPUT
-        echo "changed_digests=${changed_digests%,}" >> $GITHUB_OUTPUT
+        dcheck_changed=$(echo "$dcheck" | \
+          jq -r 'to_entries | map(select(.value | split("=")[1] == "changed" or split("=")[1] == "new"))')
+
+        changed_tags=$(echo "$dcheck_changed" | jq -r 'map(.key) | @json')
+        changed_digests=$(echo "$dcheck_changed" | jq -r 'map(.value | split("=")[0]) | @json')
+        n_changed=$(echo "$changed_tags" | jq 'length')
+        if [[ $n_changed -eq 0 ]]; then
+          digest_file="false"
+        else
+          digest_file=$($dcheck | jq -r 'to_entries | map("\(.key)=\(.value | split("=")[0])") | .[]')
+        fi
+
+        echo "changed_tags=$changed_tags" >> $GITHUB_OUTPUT
+        echo "changed_digests=$changed_digests" >> $GITHUB_OUTPUT
+        echo "n_changed=$n_changed" >> $GITHUB_OUTPUT
+        echo "digest_file=$digest_file" >> $GITHUB_OUTPUT
+
 
   publish-digest:
     needs: aggregate-results
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        tag: ${{ fromJson(needs.aggregate-results.outputs.changed-tags) }}
-        digest: ${{ fromJson(needs.aggregate-results.outputs.changed-digests) }}
+        tag: ${{ fromJson(needs.aggregate-results.outputs.changed_tags) }}
+        digest: ${{ fromJson(needs.aggregate-results.outputs.changed_digests) }}
     steps:
     - name: test
       run: |
