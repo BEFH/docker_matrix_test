@@ -43,7 +43,9 @@ jobs:
           echo "Using the tag $tag"
           nm="befh/frigate"
           st="${tag#*-}"
-          if grep -vq stable <<< $tag; then
+          if [[ $tag == "stable" ]]; then
+            echo "tags=$nm:latest,$nm:stable" >> $GITHUB_OUTPUT
+          elif grep -vq stable <<< $tag; then
             echo "tags=$nm:latest-$st,$nm:stable-$st,$nm:$tag" >> $GITHUB_OUTPUT
           else
             echo "tags=$nm:latest-$st,$nm:$tag" >> $GITHUB_OUTPUT
