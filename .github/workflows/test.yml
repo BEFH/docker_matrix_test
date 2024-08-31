@@ -28,7 +28,12 @@ jobs:
     - name: Get current digest
       id: digest
       run: |
-        dg=$(skopeo inspect docker://ghcr.io/blakeblackshear/frigate:${{ matrix.image }} --override-arch=amd64 --override-os=linux | jq -r '.Digest')
+        if [[ ${{ matrix.image }} == 'stable-standard-arm64' ]]; then
+          arch=arm64
+        else
+          arch=amd64
+        fi
+        dg=$(skopeo inspect docker://ghcr.io/blakeblackshear/frigate:${{ matrix.image }} --override-arch=$arch --override-os=linux | jq -r '.Digest')
         echo "current_digest=$dg" >> $GITHUB_OUTPUT
 
     - name: Compare digests
