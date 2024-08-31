@@ -1,0 +1,97 @@
+name: Check Container Digest Test
+
+on:
+  workflow_dispatch:
+    inputs:
+      logLevel:
+        description: 'Log level'     
+        required: false
+        default: 'warning'
+      tags:
+        description: 'Manual trigger'  
+
+jobs:
+  check-digest:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        image: ['stable', 'stable-tensorrt', 'stable-rocm', 'stable-standard-arm64']
+    outputs:
+      changed-tags: ${{ steps.compare.outputs.changed_tags }}
+      changed-digests: ${{ steps.compare.outputs.changed_digests }}
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Get current digest
+      id: digest
+      run: |
+        dg=$(skopeo inspect docker://ghcr.io/blakeblackshear/frigate:${{ matrix.image }} --override-arch=amd64 --override-os=linux | jq -r '.Digest')
+        echo "current_digest=$dg" >> $GITHUB_ENV
+        echo "current_digest=$dg" >> $GITHUB_OUTPUT
+
+    - name: Compare digests
+      id: compare
+      run: |
+        digest_file="upstream_digests.txt"
+        current_tag=${{ matrix.image }}
+        current_digest=${{ steps.digest.outputs.current_digest }}
+
+        # Initialize changed tags and digests output
+        echo "changed_tags=" >> $GITHUB_OUTPUT
+        echo "changed_digests=" >> $GITHUB_OUTPUT
+
+        # Read previous digest from file
+        if [ -f "$digest_file" ]; then
+          previous_digest=$(grep "^$current_tag=" "$digest_file" | cut -d '=' -f2)
+          if [ "$previous_digest" != "$current_digest" ]; then
+            echo "Digest changed for $current_tag"
+            echo "changed_tags=$current_tag" >> $GITHUB_OUTPUT
+            echo "changed_digests=$current_digest" >> $GITHUB_OUTPUT
+          fi
+        else
+          echo "First run or $digest_file file not found"
+          echo "changed_tags=$current_tag" >> $GITHUB_OUTPUT
+          echo "changed_digests=$current_digest" >> $GITHUB_OUTPUT
+
+  aggregate-results:
+    needs: check-digest
+    runs-on: ubuntu-latest
+    outputs:
+      changed-tags: ${{ steps.aggregate.outputs.changed_tags }}
+      changed-digests: ${{ steps.aggregate.outputs.changed_digests }}
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Aggregate changed tags and digests
+      id: aggregate
+      run: |
+        changed_tags=""
+        changed_digests=""
+
+        for image in stable stable-tensorrt stable-rocm stable-standard-arm64; do
+          tag_output="${{ needs.check-digest.outputs.changed-tags }}"
+          digest_output="${{ needs.check-digest.outputs.changed-digests }}"
+          
+          if [[ "$tag_output" == *"$image"* ]]; then
+            changed_tags+="$image,"
+            changed_digests+="${digest_output%,},"
+          fi
+        done
+
+        echo "changed_tags=${changed_tags%,}" >> $GITHUB_OUTPUT
+        echo "changed_digests=${changed_digests%,}" >> $GITHUB_OUTPUT
+
+  publish-digest:
+    needs: aggregate-results
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        tag: ${{ fromJson(needs.aggregate-results.outputs.changed-tags) }}
+        digest: ${{ fromJson(needs.aggregate-results.outputs.changed-digests) }}
+    steps:
+    - name: test
+      run: |
+        echo ${{ matrix.tag }}
+        echo ${{ matrix.digest }}
