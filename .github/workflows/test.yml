@@ -53,6 +53,7 @@ jobs:
           echo "First run or $digest_file file not found"
           echo "changed_tags=$current_tag" >> $GITHUB_OUTPUT
           echo "changed_digests=$current_digest" >> $GITHUB_OUTPUT
+        fi
 
   aggregate-results:
     needs: check-digest
