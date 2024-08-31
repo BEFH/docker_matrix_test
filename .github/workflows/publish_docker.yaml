@@ -1,0 +1,37 @@
+# This workflow uses actions that are not certified by GitHub.
+# They are provided by a third-party and are governed by
+# separate terms of service, privacy policy, and support
+# documentation.
+
+name: Publish Docker image
+
+on:
+  workflow_call:
+    inputs:
+      digest:
+        description: 'The new digest value'
+        required: false
+        type: string
+      tag:
+        description: 'The tag to build'
+        required: true
+        type: string
+    secrets:
+      DOCKER_PASSWORD:
+        required: false
+
+  release:
+    types: [published]
+
+jobs:
+  push_to_registry:
+    name: Push Docker image to Docker Hub
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+
+      - name: Handle workflow call or release event
+        run: |
+          echo ${{ inputs.tag }}
+          echo ${{ inputs.digest }}
