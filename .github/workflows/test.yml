@@ -65,7 +65,6 @@ jobs:
       changed_digests: ${{ steps.aggregate.outputs.changed_digests }}
       changed_map: ${{ steps.aggregate.outputs.changed_map }}
       n_changed: ${{ steps.aggregate.outputs.n_changed }}
-      digest_file: ${{ steps.aggregate.outputs.n_changed }}
     steps:
     - name: Aggregate changed tags and digests
       id: aggregate
@@ -79,16 +78,11 @@ jobs:
         changed_digests=$(echo "$dcheck_changed" | jq -r 'map(.value | split("=")[0]) | @json')
         changed_map=$(echo "$dcheck_changed" | jq 'map({tag: .key, digest: (.value | split("=")[0])})')
         n_changed=$(echo "$changed_tags" | jq 'length')
-        if [[ $n_changed -eq 0 ]]; then
-          digest_file="false"
-        else
-          digest_file=$($dcheck | jq -r 'to_entries | map("\(.key)=\(.value | split("=")[0])") | .[]')
-        fi
 
         echo "changed_tags=$changed_tags" >> $GITHUB_OUTPUT
         echo "changed_digests=$changed_digests" >> $GITHUB_OUTPUT
         echo "n_changed=$n_changed" >> $GITHUB_OUTPUT
-        echo "digest_file=$digest_file" >> $GITHUB_OUTPUT
+        echo "changed_map=$changed_map" >> $GITHUB_OUTPUT
 
 
   publish-digest:
