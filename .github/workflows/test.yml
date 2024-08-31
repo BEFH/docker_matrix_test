@@ -81,8 +81,9 @@ jobs:
         echo "changed_tags=$changed_tags" >> $GITHUB_OUTPUT
         echo "changed_digests=$changed_digests" >> $GITHUB_OUTPUT
         echo "n_changed=$n_changed" >> $GITHUB_OUTPUT
-        echo "changed_map=$(echo $dcheck_changed | \
-          jq '{include: map({tag: .key, digest: (.value | split("=")[0])})} | @json')" >> $GITHUB_OUTPUT
+        echo $dcheck_changed | \
+          jq '{include: map({tag: .key, digest: (.value | split("=")[0])})} | @json' \
+          sed 's/^/changed_map=/' >> $GITHUB_OUTPUT
         #echo "changed_map={\"include\":[{\"tag\":\"foo\",\"digest\":\"Debug\"},{\"tag\":\"bar\",\"digest\":\"Release\"}]}" >> $GITHUB_OUTPUT
 
 
