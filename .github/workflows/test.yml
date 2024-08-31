@@ -63,6 +63,7 @@ jobs:
     outputs:
       changed_tags: ${{ steps.aggregate.outputs.changed_tags }}
       changed_digests: ${{ steps.aggregate.outputs.changed_digests }}
+      changed_map: ${{ steps.aggregate.outputs.changed_map }}
       n_changed: ${{ steps.aggregate.outputs.n_changed }}
       digest_file: ${{ steps.aggregate.outputs.n_changed }}
     steps:
@@ -76,6 +77,7 @@ jobs:
 
         changed_tags=$(echo "$dcheck_changed" | jq -r 'map(.key) | @json')
         changed_digests=$(echo "$dcheck_changed" | jq -r 'map(.value | split("=")[0]) | @json')
+        changed_map=$(echo "$dcheck_changed" |jq 'map({tag: .key, digest: (.value | split("=")[0])}) | @json')
         n_changed=$(echo "$changed_tags" | jq 'length')
         if [[ $n_changed -eq 0 ]]; then
           digest_file="false"
@@ -94,8 +96,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        tag: ${{ fromJson(needs.aggregate-results.outputs.changed_tags) }}
-        digest: ${{ fromJson(needs.aggregate-results.outputs.changed_digests) }}
+        include: ${{ fromJson(needs.aggregate-results.outputs.changed_map) }}
     steps:
     - name: test
       run: |
