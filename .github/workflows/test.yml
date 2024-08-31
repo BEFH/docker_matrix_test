@@ -76,7 +76,7 @@ jobs:
 
         changed_tags=$(echo "$dcheck_changed" | jq -r 'map(.key) | @json')
         changed_digests=$(echo "$dcheck_changed" | jq -r 'map(.value | split("=")[0]) | @json')
-        changed_map=$(echo "$dcheck_changed" | jq 'map({tag: .key, digest: (.value | split("=")[0])}) | @json')
+        changed_map=$(echo "$dcheck_changed" | jq '{include: map({tag: .key, digest: (.value | split("=")[0])})} | @json')
         n_changed=$(echo "$changed_tags" | jq 'length')
 
         echo "changed_tags=$changed_tags" >> $GITHUB_OUTPUT
@@ -89,8 +89,7 @@ jobs:
     needs: aggregate-results
     runs-on: ubuntu-latest
     strategy:
-      matrix:
-        include: ${{ fromJson(needs.aggregate-results.outputs.changed_map) }}
+      matrix: ${{ fromJson(needs.aggregate-results.outputs.changed_map) }}
     steps:
     - name: test
       run: |
